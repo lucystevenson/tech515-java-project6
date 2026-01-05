@@ -47,6 +47,8 @@ Your video should include:
 **Stage Components:**
 - Private GitHub repo for the storage of the app code and SQL script to seed the database. You will need this to do your `git clone` from
 
+- I created a GitHub repository named 'tech515-Java-Spring-Boot-App' and stored the ‘library-java17-mysql-app' file it it
+- I created a GitHub repository named 'tech515-java-project6' to store all notes in for this project
 
 ---
 
@@ -63,6 +65,155 @@ REMEMBER TO INCLUDE:
 - Blockers – Suggestion: what was the issue, reason for the issue, solution
 
 - What you learnt
+
+### App Overview
+
+"Library" Java-Springboot app
+
+- Uses a MySQL database in the backend
+- Includes a...
+    - GUI and
+    - API
+
+### Set up app VM
+
+Requirements:
+- Hardware
+  - AWS t3.small memory
+- Software
+  - Ubuntu 22.04 LTS (Can run on Windows 10/11 also)
+  - Maven
+  - Java 17
+  - ProjectLibrary2 is the app folder
+
+Environment Variables:
+- Variable name: DB_HOST
+    - Description: Acts like a connection string
+    - Value: jdbc:mysql://$DATABASE_IP:3306/library
+- Variable name: DB_USER
+  - Description: The username setup in your MySQL database
+  - Value: Can be whatever what you want to setup
+- Variable name: DB_PASS
+  - Description: The password setup in your MySQL database
+  - Value: Can be whatever what you want to setup
+
+Security Groups:
+
+![alt text](image.png)
+
+### Set up MySQL VM
+
+Requirements:
+- Hardware
+  - AWS t3.small memory
+- Software
+  - Ubuntu 22.04 LTS (Can run on Windows 10/11 also)
+  - MySQL database
+  - Database must be seeded via an SQL script library.sql
+
+Security Groups:
+
+![alt text](image-1.png)
+
+| Type         | Port | Source                 |
+| ------------ | ---- | ---------------------- |
+| MySQL/Aurora | 3306 | **App Security Group** |
+
+⚠️ Do NOT use 0.0.0.0/0 for MySQL.
+
+In AWS console:
+
+Source → Security group
+
+Select your app security group
+
+This allows:
+
+App VM → DB VM
+But blocks everyone else 🚫
+
+### Run DB code
+
+### Run app code
+
+1. go into app folder 'ProjectLibrary2'
+2. run app in the background
+
+`mvn spring-boot:start`
+
+3. stop app running
+
+`mvn spring-boot:stop`
+
+1. Install dependencies
+On your Ubuntu VM:
+sudo apt update && sudo apt install -y nodejs npm
+If your app needs a specific Node version (e.g., Node 20):
+curl -sL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+________________________________________
+2. Clone the Sparta app
+git clone https://github.com/<your-repo>/tech515-sparta-app.git
+Then:
+cd tech515-sparta-app/app
+This folder contains app.js.
+________________________________________
+3. Install app packages
+Inside the app folder:
+npm install
+This installs:
+•	Express
+•	Mocha
+•	Supertest
+•	Mongoose
+•	Any other dependencies from package.json
+________________________________________
+4. Set the MongoDB connection environment variable
+Your backend needs DB_HOST so it knows where MongoDB is.
+Example:
+export DB_HOST="mongodb://<DB_PRIVATE_IP>:27017/posts"
+Example using your real value:
+export DB_HOST="mongodb://172.31.17.218:27017/posts"
+Check it:
+echo $DB_HOST
+________________________________________
+5. Start the backend app
+Option A — Run directly (manual)
+node app.js
+or:
+npm start
+You will see:
+App is running on port 3000 Node.js / Express apps often run on localhost:3000
+Keep this window open — or use tmux if needed.
+________________________________________
+Option B — Run with PM2 (recommended for production)
+Install PM2:
+sudo npm install -g pm2
+Start the app:
+pm2 start app.js --name sparta-app --update-env
+Save the process list so PM2 restarts it after reboot:
+pm2 save
+Check PM2 status:
+pm2 status
+________________________________________
+6. Optional — Set up Nginx reverse proxy
+If you want to expose the app on port 80:
+Edit /etc/nginx/sites-available/default and change:
+try_files $uri $uri/ =404;
+to:
+proxy_pass http://127.0.0.1:3000;
+Then restart nginx:
+sudo systemctl restart nginx
+Your app will now be available at:
+
+
+### Test the app is running
+
+ℹ️ If you have a reverse proxy working, you won't need to include the port number in the address. For example: http://34.245.124.148:5000/authors would become http://34.245.124.148/authors
+
+Otherwise, go to <ip-address>:5000
+
+There is no explicit mapping for the base URL (base path), so you should get an error like this: java-mysql-app-whitelabel-error-page
 
 
 ---
@@ -142,5 +293,4 @@ REMEMBER TO INCLUDE:
 ## Deliverable Help
 
 Trello board at the start:
-
-![alt text](image.png)
+![Trello Board Initial Setup](images/trello_board_setup.png)
