@@ -69,7 +69,9 @@ REMEMBER TO INCLUDE:
 ### App Overview
 
 "Library" Java-Springboot app
-
+- Built with Maven
+- Runs on Java 17
+- Backend service (not a Node app)
 - Uses a MySQL database in the backend
 - Includes a...
     - GUI and
@@ -134,6 +136,8 @@ But blocks everyone else 🚫
 
 ### Run DB code
 
+I need a library.sql SQL file that contains the INSERT statements for all the data I want in the authors table
+
 ### Run app code
 
 1. go into app folder 'ProjectLibrary2'
@@ -145,6 +149,38 @@ But blocks everyone else 🚫
 
 `mvn spring-boot:stop`
 
+I don't need npm as this is a Java Sprint Boot app, not a Node.js app
+
+**My Steps**
+
+copy github private key onto app vm so I can clone the app onto the vm:
+
+On my machine:
+
+scp -i ~/.ssh/tech515-lucy-aws.pem ~/.ssh/lucy-github-key ubuntu@34.244.49.155:~/.ssh/lucy-github-key
+
+On the EC2:
+
+chmod 600 ~/.ssh/lucy-github-key # give read write permissions in vm
+
+Then configure SSH for GitHub (as previously):
+
+nano ~/.ssh/config
+
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/lucy-github-key
+
+chmod 600 ~/.ssh/config
+
+Then:
+
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/lucy-github-key
+ssh -T git@github.com
+
+
 1. Install dependencies
 On your Ubuntu VM:
 sudo apt update && sudo apt install -y nodejs npm
@@ -152,13 +188,13 @@ If your app needs a specific Node version (e.g., Node 20):
 curl -sL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 ________________________________________
-2. Clone the Sparta app
+1. Clone the Sparta app
 git clone https://github.com/<your-repo>/tech515-sparta-app.git
 Then:
 cd tech515-sparta-app/app
 This folder contains app.js.
 ________________________________________
-3. Install app packages
+1. Install app packages
 Inside the app folder:
 npm install
 This installs:
@@ -168,7 +204,7 @@ This installs:
 •	Mongoose
 •	Any other dependencies from package.json
 ________________________________________
-4. Set the MongoDB connection environment variable
+1. Set the MongoDB connection environment variable
 Your backend needs DB_HOST so it knows where MongoDB is.
 Example:
 export DB_HOST="mongodb://<DB_PRIVATE_IP>:27017/posts"
@@ -177,7 +213,7 @@ export DB_HOST="mongodb://172.31.17.218:27017/posts"
 Check it:
 echo $DB_HOST
 ________________________________________
-5. Start the backend app
+1. Start the backend app
 Option A — Run directly (manual)
 node app.js
 or:
@@ -196,7 +232,7 @@ pm2 save
 Check PM2 status:
 pm2 status
 ________________________________________
-6. Optional — Set up Nginx reverse proxy
+1. Optional — Set up Nginx reverse proxy
 If you want to expose the app on port 80:
 Edit /etc/nginx/sites-available/default and change:
 try_files $uri $uri/ =404;
@@ -206,6 +242,11 @@ Then restart nginx:
 sudo systemctl restart nginx
 Your app will now be available at:
 
+```
+proxy_pass http://127.0.0.1:3000;
+
+This tells Nginx to forward requests to a server running on 127.0.0.1:3000.
+```
 
 ### Test the app is running
 
@@ -215,7 +256,12 @@ Otherwise, go to <ip-address>:5000
 
 There is no explicit mapping for the base URL (base path), so you should get an error like this: java-mysql-app-whitelabel-error-page
 
+http://34.244.49.155:5000/web/authors
 
+![alt text](image-2.png)
+
+![alt text](image-3.png)
+![alt text](image-4.png)
 ---
 
 ## Stage 3: Deploy the app and database on AWS using VMs
@@ -250,7 +296,279 @@ REMEMBER TO INCLUDE:
   - Docker-compose YAML file
   - Dockerised application images built and ready for deployment
 
+What CHANGES 🔄
+Before (Harder)	> Now (Cleaner)
+Two VMs >	One VM
+Install Java manually >	Java lives inside a container
+Install MySQL manually >	MySQL container
+Open DB ports	> Docker network
+Manage system services >	Docker Compose does it
+Debug OS issues	> Containers are isolated
 
+How your architecture changes
+❌ Before (VM-based)
+EC2 (App VM)
+ ├ Java
+ ├ Maven
+ ├ Nginx
+ └ Spring Boot
+
+EC2 (DB VM)
+ └ MySQL
+
+✅ Now (Docker-based)
+EC2 (1 VM)
+ ├ Docker
+ └ Docker Compose
+     ├ App container (Java + Spring Boot)
+     └ MySQL container
+
+
+Same idea — less setup.
+
+My Steps 
+
+1️⃣ Learn Docker basics
+
+**Docker image** - a read-only template that defines your container. The image contains the code that will run including any definitions for any libraries and dependancies your code needs. 
+
+Using Docker, you can quickly deploy and scale applications into any environment and know your code will run. You can do this because **Docker packages software into standardized units called containers** that have everything the software needs to run including libraries, system tools, code, and runtime.
+
+The Docker Engine is installed on each server you want to run containers on and provides a simple set of commands you can use to build, start, or stop containers.
+
+Running Docker on AWS provides developers and admins a highly reliable, low-cost way to build, ship, and run distributed applications at any scale.
+
+Think of each container as a preconfigured mini VM
+
+Key Commands:
+
+1. `docker ps`
+- run inside VM to see the containers
+- output example:
+  ```
+  CONTAINER ID   IMAGE         NAME
+  abc123         mysql:8.0     library-db
+  def456         app-image     library-app
+  ```
+2. `docker logs`
+- this command batch-retrieves logs present at the time of execution
+- `docker logs --details` command will add on extra attributes, such as environment variables and labels
+- `docker logs --timestamps` command will add an RFC3339Nano timestamp
+3. `docker-compose up`
+- we add this to the user data to create the containers
+
+
+
+2️⃣ Create Dockerfile (for the app)
+
+This replaces:
+- installing Java
+- installing Maven
+- running mvn
+
+⭐ So no systems are installed
+
+>🧠 Think of the Dockerfile as: A recipe for the app container
+
+We create this file in the root of our repo:
+
+Dockerfile (no extension!)
+```
+# Use Maven + Java to build the app
+FROM maven:3.9.6-eclipse-temurin-17 AS build
+
+WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
+
+# Run stage (lighter image)
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+
+EXPOSE 5000
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+- I created this and changed permissions to execute
+
+What this does
+Line	> Meaning
+FROM maven...	> Gets Java + Maven preinstalled
+mvn clean package >	Builds your Spring Boot app
+FROM ...jre	> Smaller runtime image
+EXPOSE 5000	> Your app port
+ENTRYPOINT	> Runs the app
+
+
+3️⃣ Create docker-compose.yml (main task)
+
+This replaces:
+
+- DB VM script
+- App VM script
+- networking
+- port forwarding
+
+>🧠 Think of the docker-compose.yml file as: The blueprint for the containers
+
+👉 The containers are created by `docker-compose up` in the user data
+
+👉 What gets created is defined in `docker-compose.yml`
+
+
+You’ll end up with:
+```
+repo/
+├ Dockerfile
+├ docker-compose.yml
+├ library.sql
+└ README.md
+```
+
+Create docker-compose.yml file
+
+```
+version: "3.8"
+
+services:
+```
+this bit builds MySQL container (create a container from the MySQL image)
+```
+  db:
+    image: mysql:8.0
+    container_name: library-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: library
+      MYSQL_USER: lucysteve
+      MYSQL_PASSWORD: strongpassword
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./library.sql:/docker-entrypoint-initdb.d/library.sql # MySQL automatically runs library.sql on first start (this bit seeds the database)
+    ports:
+      - "3306:3306"
+```
+this bit builds APP container (build an image using the Dockerfile in this folder, then run it as a container)
+```
+  app:
+    build: .
+    container_name: library-app
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "80:5000"
+    environment:
+      DB_HOST: db
+      DB_USER: lucysteve
+      DB_PASS: strongpassword
+volumes:
+  db_data:
+
+```
+
+- I created this and changed permissions to execute
+
+
+🔑 Important:
+
+DB_HOST: db
+
+db is the service name
+
+Docker automatically creates DNS
+
+Your app connects to MySQL without an IP
+
+depends_on
+
+Ensures DB starts before app
+
+80:5000
+
+Browser → port 80
+
+Container → port 5000
+
+
+4️⃣ Create User data script (fully automated)
+
+This replaces your old:
+- Java install
+- Maven install
+- MySQL install
+- Nginx config
+
+
+Create user data
+
+```
+#!/bin/bash
+
+echo "=== Updating system ==="
+apt update -y
+
+echo "=== Installing Docker ==="
+apt install -y docker.io docker-compose git
+
+echo "=== Enable Docker ==="
+systemctl start docker
+systemctl enable docker
+
+# Allow ubuntu to run docker
+usermod -aG docker ubuntu
+
+echo "=== Cloning repo ==="
+cd /home/ubuntu
+git clone https://github.com/lucystevenson/tech515-Java-Spring-Boot-App.git
+cd tech515-Java-Spring-Boot-App
+
+echo "=== Starting containers ==="
+docker-compose up -d
+
+echo "=== Done ==="
+```
+Check containers have been created
+- ssh into VM
+- command `docker ps` to see containers
+
+
+What does `docker-compose up -d` do?
+- It creates the containers
+
+How?
+
+1. Docker reads docker-compose.yml
+2. Sees db
+
+  - pulls MySQL image
+  - creates MySQL container
+
+3. Sees app
+
+  - builds image using Dockerfile
+  - creates App container
+
+4. Connects them on a private Docker network
+
+5. Starts them
+
+
+5️⃣ Create EC2 on AWS
+
+- create just 1 VM
+- set up security groups to open port 5000
+- add user data above
+
+CHECK:
+1. check containers are running `docker ps`
+2. check logs
+  - app: `docker logs library-app`
+  - db: `docker logs library-db`
+3. test app in browser: http://54.155.143.32/
 
 REMEMBER TO INCLUDE:
 

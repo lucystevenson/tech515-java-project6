@@ -38,3 +38,6 @@ sudo sed -i "s/^bind-address.*/bind-address = 0.0.0.0/" /etc/mysql/mysql.conf.d/
 sudo systemctl restart mysql
 echo "MySQL ready and listening on 0.0.0.0:3306"
 echo "Done"
+
+
+PRIVATE DB IP - 172.31.61.173

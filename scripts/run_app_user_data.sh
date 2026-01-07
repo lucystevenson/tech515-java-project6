@@ -73,10 +73,11 @@ echo
 # --------------------------
 # Set environment variables
 # --------------------------
+# v1 PRIVATE DB IP - 172.31.61.173
 # uncomment for connecting DB
 echo Set/append environment variables in /etc/environment ...
 sudo tee -a /etc/environment > /dev/null <<EOF
-DB_HOST=jdbc:mysql://172.31.52.25:3306/library
+DB_HOST=jdbc:mysql://172.31.61.173:3306/library 
 DB_USER=lucysteve
 DB_PASS=strongpassword
 EOF
@@ -88,10 +89,9 @@ echo
 # Clone repo
 # --------------------------
 
-echo Git clone ...
-git clone git@github.com:lucystevenson/tech515-Java-Spring-Boot-App.git repo
-echo "Done!"
-echo
+mkdir -p /home/ubuntu
+git clone https://github.com/lucystevenson/tech515-Java-Spring-Boot-App.git /home/ubuntu/repo
+chown -R ubuntu:ubuntu /home/ubuntu/repo
 
 # --------------------------
 # Install MYSQL
@@ -108,7 +108,7 @@ echo
 # --------------------------
 
 echo "Seeding database from library.sql..."
-mysql -h 172.31.52.25 -u"$DB_USER" -p"$DB_PASS" library < "$HOME/repo/library.sql"
+mysql -h 172.31.61.173 -u"$DB_USER" -p"$DB_PASS" library < /home/ubuntu/repo/library.sql
 echo "Done!"
 echo
 
@@ -117,7 +117,7 @@ echo
 # --------------------------
 
 echo cd into folder ...
-cd repo/LibraryProject2/
+cd /home/ubuntu/repo/LibraryProject2
 echo "In app directory: $(pwd)"
 echo Done!
 echo
@@ -133,9 +133,10 @@ echo "Done!"
 echo
 
 echo  Run app ...
-mvn spring-boot:start # to run in background
+nohup mvn spring-boot:run > /home/ubuntu/app.log 2>&1 &
+
+# mvn spring-boot:start # to run in background
 echo Done!
 echo
 
-#to check if app is running
-#if sudo lsof -i :5000 > /dev/null; then echo "App is running on port 5000!"; else echo "App is NOT running on port 5000."; fi
+
