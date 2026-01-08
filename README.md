@@ -560,7 +560,8 @@ How?
 5️⃣ Create EC2 on AWS
 
 - create just 1 VM
-- set up security groups to open port 5000
+- set up security groups:
+![alt text](image-5.png)
 - add user data above
 
 CHECK:

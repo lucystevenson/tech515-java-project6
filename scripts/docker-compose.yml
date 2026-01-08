@@ -15,18 +15,30 @@ services:
       - ./library.sql:/docker-entrypoint-initdb.d/library.sql
     ports:
       - "3306:3306"
+
   app:
     build: .
     container_name: library-app
     restart: always
     depends_on:
       - db
-    ports:
-      - "80:5000"
+    expose:
+      - "5000"
     environment:
-      DB_HOST: db
-      DB_USER: lucysteve
-      DB_PASS: strongpassword
+      SPRING_DATASOURCE_URL: jdbc:mysql://library-db:3306/library
+      SPRING_DATASOURCE_USERNAME: lucysteve
+      SPRING_DATASOURCE_PASSWORD: strongpassword
+
+  nginx:
+    image: nginx:alpine
+    container_name: library-nginx
+    restart: always
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
 volumes:
   db_data:
-

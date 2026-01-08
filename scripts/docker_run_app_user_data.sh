@@ -19,6 +19,8 @@ git clone https://github.com/lucystevenson/tech515-Java-Spring-Boot-App.git
 cd tech515-Java-Spring-Boot-App
 
 echo "=== Starting containers ==="
+docker-compose down
+docker-compose build --no-cache
 docker-compose up -d
 
 echo "=== Done ==="
